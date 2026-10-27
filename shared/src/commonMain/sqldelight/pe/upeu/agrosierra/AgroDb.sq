@@ -1,0 +1,79 @@
+-- sqldelight/pe/upeu/agrosierra/AgroDb.sq
+CREATE TABLE lote (
+    id INTEGER NOT NULL PRIMARY KEY,
+    codigo TEXT NOT NULL, nombre TEXT NOT NULL,
+    hectareas REAL NOT NULL, cultivo TEXT NOT NULL,
+    valle TEXT NOT NULL, campaniaCerrada INTEGER NOT NULL,
+    dosisMaxima REAL NOT NULL
+);
+
+CREATE TABLE labor (
+    id INTEGER NOT NULL PRIMARY KEY,
+    loteId INTEGER NOT NULL, tipo TEXT NOT NULL,
+    fecha TEXT NOT NULL, responsable TEXT NOT NULL,
+    cantidad REAL NOT NULL, observacion TEXT NOT NULL,
+    pendiente INTEGER NOT NULL
+);
+
+-- Datos de control de la sincronizacion (por ejemplo, la fecha de la ultima).
+CREATE TABLE metadato (
+    clave TEXT NOT NULL PRIMARY KEY,
+    valor TEXT NOT NULL
+);
+
+-- ===== Lotes =====
+
+observarLotes:
+SELECT * FROM lote
+WHERE valle LIKE :valle
+  AND (codigo LIKE :texto OR nombre LIKE :texto)
+ORDER BY codigo;
+
+observarValles:
+SELECT DISTINCT valle FROM lote ORDER BY valle;
+
+lotePorId:
+SELECT * FROM lote WHERE id = ?;
+
+guardarLote:
+INSERT OR REPLACE INTO lote(id, codigo, nombre, hectareas, cultivo, valle, campaniaCerrada, dosisMaxima)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+
+-- ===== Labores =====
+
+observarLaboresPorLote:
+SELECT * FROM labor WHERE loteId = ? ORDER BY fecha DESC;
+
+laborPorId:
+SELECT * FROM labor WHERE id = ?;
+
+guardarLabor:
+INSERT OR REPLACE INTO labor(id, loteId, tipo, fecha, responsable, cantidad, observacion, pendiente)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+
+eliminarLabor:
+DELETE FROM labor WHERE id = ?;
+
+-- Pendientes en el orden en que se crearon: primero las nuevas (-1, -2, ...) y luego las correcciones.
+laboresPendientes:
+SELECT * FROM labor WHERE pendiente = 1
+ORDER BY CASE WHEN id < 0 THEN 0 ELSE 1 END, id DESC;
+
+contarPendientes:
+SELECT COUNT(*) FROM labor WHERE pendiente = 1;
+
+eliminarSincronizadasDeLote:
+DELETE FROM labor WHERE loteId = ? AND pendiente = 0;
+
+-- COALESCE evita el NULL de la tabla vacia; el minOf de Kotlin
+-- garantiza que el id provisional sea siempre negativo.
+siguienteIdLocal:
+SELECT COALESCE(MIN(id), 0) FROM labor;
+
+-- ===== Metadatos =====
+
+guardarMetadato:
+INSERT OR REPLACE INTO metadato(clave, valor) VALUES (?, ?);
+
+observarMetadato:
+SELECT valor FROM metadato WHERE clave = ?;
