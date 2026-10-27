@@ -61,16 +61,17 @@ fun DetalleScreen(
     var confirmarCierre by remember { mutableStateOf(false) }
     var porEliminar by remember { mutableStateOf<Labor?>(null) }
 
+    // Se consume después de mostrarlo: consumirlo antes cambia la clave y cancela el snackbar.
     LaunchedEffect(mensaje) {
         mensaje?.let {
-            viewModel.mensajeMostrado()
             avisos.showSnackbar(it)
+            viewModel.mensajeMostrado()
         }
     }
     LaunchedEffect(aviso) {
         aviso?.let {
-            alConsumirAviso()
             avisos.showSnackbar(it)
+            alConsumirAviso()
         }
     }
 
