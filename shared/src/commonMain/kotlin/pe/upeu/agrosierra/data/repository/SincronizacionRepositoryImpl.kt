@@ -48,8 +48,10 @@ class SincronizacionRepositoryImpl(
                 }
                 is Resultado.Fallo -> {
                     if (r.error.seConservaPendiente()) return ResumenEnvio(enviadas, rechazadas, r.error)
-                    if (r.error is ErrorApi.NoEncontrado) base.eliminarLabor(labor.id)
-                    // Rechazada por una regla del servidor: queda pendiente para corregirla o descartarla.
+                    // Una corrección rechazada (o de una labor que ya no existe) se descarta: la descarga
+                    // siguiente restaura la versión del servidor. Una labor nueva rechazada queda pendiente
+                    // para que el técnico la corrija o la descarte.
+                    if (labor.id > 0) base.eliminarLabor(labor.id)
                     rechazadas += "${labor.tipo.name} del ${labor.fecha}: ${r.error.detalle()}"
                 }
             }
