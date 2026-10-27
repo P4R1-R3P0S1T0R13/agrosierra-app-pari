@@ -82,3 +82,40 @@ class SincronizacionTest {
         assertEquals(listOf("enviar"), llamadas)
     }
 }
+
+class CorreccionRechazadaTest {
+
+    @Test
+    fun unaCorreccionRechazadaSeDescartaYLaDescargaRestauraLaVersionDelServidor() = runTest {
+        val base = baseEnMemoria()
+        // Corrección hecha sin red sobre la labor 4, que pertenece a otro técnico.
+        base.guardarLabor(laborNueva(loteId = 2).copy(id = 4, cantidad = 999.0, pendiente = true))
+        val api = apiSimulada { peticion ->
+            val ruta = peticion.url.encodedPath.removePrefix("/api/v1/")
+            when {
+                peticion.method == HttpMethod.Put -> json(
+                    """{"status":403,"message":"Solo puede corregir las labores que usted registro"}""",
+                    HttpStatusCode.Forbidden,
+                )
+                ruta == "lotes" -> json(
+                    """{"contenido":[{"id":2,"codigo":"LT-02","nombre":"Santa Rosa","hectareas":1.8,"cultivo":"Maiz",
+                       "valle":"Mantaro","campaniaCerrada":false,"dosisMaximaPorHectarea":3.5}],
+                       "pagina":0,"tamanio":50,"totalElementos":1,"totalPaginas":1,"ultima":true}""",
+                )
+                else -> json(
+                    """{"contenido":[{"id":4,"loteId":2,"tipo":"RIEGO","fecha":"2026-10-18","responsable":"Rosa","cantidad":90.0}],
+                       "pagina":0,"tamanio":50,"totalElementos":1,"totalPaginas":1,"ultima":true}""",
+                )
+            }
+        }
+
+        val resumen = assertIs<Resultado.Exito<ResumenSincronizacion>>(
+            SincronizarUseCase(SincronizacionRepositoryImpl(api, base, marcaDeTiempo = { "x" }))(),
+        ).datos
+
+        assertEquals(1, resumen.rechazadas.size)
+        val labor = base.observarLabores(2).first().single()
+        assertEquals(90.0, labor.cantidad)
+        assertFalse(labor.pendiente)
+    }
+}
