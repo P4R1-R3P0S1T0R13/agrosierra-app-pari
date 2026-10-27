@@ -58,6 +58,7 @@ fun ListadoScreen(
     val sync = estado.sincronizacion
 
     // Resumen de lo enviado y lo recibido, o el motivo del fallo.
+    // El aviso se limpia después de mostrarlo: limpiarlo antes cambia la clave y cancela el snackbar.
     LaunchedEffect(sync.resumen, sync.error) {
         val resumen = sync.resumen
         val error = sync.error
@@ -68,13 +69,13 @@ fun ListadoScreen(
                     append("${resumen.lotesRecibidos} lotes y ${resumen.laboresRecibidas} labores recibidas")
                     if (resumen.rechazadas.isNotEmpty()) append(". Rechazadas: ${resumen.rechazadas.joinToString(" | ")}")
                 }
-                viewModel.avisoMostrado()
                 avisos.showSnackbar(texto)
+                viewModel.avisoMostrado()
             }
             error != null -> {
-                viewModel.avisoMostrado()
                 val accion = if (error.admiteReintento()) "Reintentar" else null
                 val r = avisos.showSnackbar(error.paraUsuario(), actionLabel = accion)
+                viewModel.avisoMostrado()
                 if (r == SnackbarResult.ActionPerformed) viewModel.sincronizar()
             }
         }

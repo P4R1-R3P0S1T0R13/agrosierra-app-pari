@@ -20,9 +20,16 @@ class MonitorConexionAndroid(contexto: Context) : MonitorConexion {
         fun hayRed(): Boolean = gestor.getNetworkCapabilities(gestor.activeNetwork)
             ?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
 
+        // Durante onLost, activeNetwork aún puede devolver la red perdida: se llevan las redes vivas.
+        val redes = mutableSetOf<Network>()
         val escucha = object : ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: Network) { trySend(true) }
-            override fun onLost(network: Network) { trySend(hayRed()) }
+            override fun onAvailable(network: Network) {
+                synchronized(redes) { redes.add(network) }
+                trySend(true)
+            }
+            override fun onLost(network: Network) {
+                trySend(synchronized(redes) { redes.remove(network); redes.isNotEmpty() })
+            }
         }
         trySend(hayRed())
         val solicitud = NetworkRequest.Builder()
